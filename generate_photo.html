@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Fabula AI Custom Interface</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --hover-color: #45a049;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 25px;
+        }
+
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .generation-area {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 6px 0 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--hover-color);
+        }
+
+        .styles-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            justify-items: center;
+            /* Центрирует карточки по горизонтали */
+            align-items: center;
+            /* (Опционально) Центрирует карточки по вертикали */
+        }
+
+        .style-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 140px;
+            /* Фиксированная высота контейнера */
+            width: 140px;
+            /* Фиксированная ширина контейнера */
+            overflow: hidden;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            padding: 10px;
+
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;/
+        }
+
+        .style-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .style-card.active {
+            border-color: var(--primary-color);
+            background-color: #f8fff8;
+            transform: translateY(-2px);
+        }
+
+        .style-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            /* Центрируем изображение */
+            border-radius: 6px;
+        }
+
+        .style-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+            color: white;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .generated-image {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .generated-image:hover {
+            transform: scale(1.03);
+        }
+
+        .history-item {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .history-thumbnails {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .history-thumbnail {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        /* Стили для ползунка */
+        .range-container {
+            position: relative;
+            margin: 20px 0;
+        }
+
+        #quantityValue {
+            right: 0;
+            top: -5px;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 15px 0;
+            -webkit-appearance: none;
+            background: #ddd;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* Индикатор загрузки */
+        .loader {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 25px;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+        }
+
+        /* Добавьте эти стили */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            cursor: zoom-out;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .modal.open {
+            display: block;
+        }
+
+
+        /* Анимация пульсации */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="loader" id="loader">Генерация... (0%)</div>
+    <div class="container">
+        <div class="controls">
+            <h2>Настройки генерации</h2>
+
+            <div class="input-group">
+                <label for="accessToken">Access Token</label>
+                <input type="text" id="accessToken" placeholder="Введите ваш токен">
+            </div>
+
+            <div class="input-group">
+                <label for="prompt">Промпт</label>
+                <input type="text" id="prompt" placeholder="Опишите ваше изображение">
+            </div>
+
+            <div class="input-group">
+                <label for="quantity">Количество изображений: <span id="quantityValue">4</span></label>
+                <input type="range" id="quantity" min="1" max="40" value="4" step="1">
+            </div>
+
+
+            <div class="input-group">
+                <label for="ratio">Соотношение сторон</label>
+                <select id="ratio">
+                    <option value="1:1">1:1 (Квадрат)</option>
+                    <option value="4:3">4:3</option>
+                    <option value="16:9">16:9</option>
+                    <option value="3:4">3:4 (Портрет)</option>
+                    <option value="9:16">9:16 (Сторис)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Стиль генерации</label>
+                <div class="styles-container" id="stylesContainer"></div>
+            </div>
+
+            <button onclick="generateImages()">Сгенерировать</button>
+
+            <h3 style="margin-top: 30px;">История генераций</h3>
+            <div id="history" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
+
+        <div class="generation-area">
+            <h2>Результаты генерации</h2>
+            <div class="images-grid" id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация стилей
+        const styles = [
+            { id: "Base", name: "Без стиля", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Base.webp" },
+            { id: "Anime", name: "Аниме", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Anime.webp" },
+            { id: "BlackWhite", name: "Черно-белый", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/BlackWhite.webp" },
+            { id: "Cyberpunk", name: "Киберпанк", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Cyberpunk.webp" },
+            { id: "Cover", name: "Обложка", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Cover.webp" },
+            { id: "Fantasy", name: "Фэнтези", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Fantasy.webp" },
+            { id: "Flat", name: "2D", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Flat.webp" },
+            { id: "ComputeGame", name: "Видеоигра", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/ComputeGame.webp" },
+            { id: "Horror", name: "Ужасы", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Horror.webp" },
+            { id: "Icon", name: "Иконка", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Icon.webp" },
+            { id: "Tattoo", name: "Татуировка", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Tattoo.webp" },
+            { id: "NoBackground", name: "Без фона", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/NoBackground.png" },
+            { id: "Minimalism", name: "Фон", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Minimalism.webp" },
+            { id: "Postcard", name: "Открытка", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Postcard.webp" },
+            { id: "Sticker", name: "Стикер", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Sticker.webp" },
+            { id: "PromotionPoster", name: "Постер", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/PromotionPoster.webp" },
+            { id: "PhotoRealism", name: "Фотореализм", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/PhotoRealism.webp" },
+            { id: "Portrait", name: "Портрет", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Portrait.webp" },
+            { id: "Steampunk", name: "Стимпанк", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Steampunk.webp" },
+            { id: "Illustration", name: "Иллюстрация", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Illustration.webp" },
+            { id: "Sketch", name: "Скетч", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Sketch.webp" },
+            { id: "Pixar", name: "Pixar", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Pixar.webp" },
+            { id: "Watercolor", name: "Акварель", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Watercolor.webp" },
+            { id: "Impressionism", name: "Импрессионизм", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Impressionism.webp" },
+            { id: "Vintage", name: "Винтаж", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Vintage.webp" },
+            { id: "LogoMonochrome", name: "Одноцветный", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoMonochrome.webp" },
+            { id: "LogoBrightColors", name: "Яркий", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoBrightColors.webp" },
+            { id: "LogoGraffiti", name: "Граффити", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoGraffiti.webp" },
+            { id: "LogoMinimalism", name: "Минималистичный", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoMinimalism.webp" },
+            { id: "LogoComplexDetails", name: "Сложные детали", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoComplexDetails.webp" },
+            { id: "LogoModern", name: "Современный", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoModern.webp" },
+            { id: "LogoGeometric", name: "Геометрический", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoGeometric.webp" },
+            { id: "LogoChildish", name: "Детский", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoChildish.webp" },
+            { id: "LogoEnvironmental", name: "Эко", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoEnvironmental.webp" },
+            { id: "LogoAntique", name: "Антикварный", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoAntique.webp" },
+            { id: "LogoWatercolor", name: "Акварель", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoWatercolor.webp" },
+            { id: "Logo3DRender", name: "Объемный", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/Logo3DRender.webp" },
+            { id: "LogoCalligraphic", name: "Каллиграфический", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/LogoCalligraphic.webp" },
+            { id: "InscriptionNeon", name: "Неоновая вывеска", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/InscriptionNeon.webp" },
+            { id: "InscriptionNature", name: "Надписи природы", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/InscriptionNature.webp" },
+            { id: "InscriptionInk", name: "Каллиграфия", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/InscriptionInk.webp" },
+            { id: "InscriptionStreet", name: "Уличная вывеска", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/InscriptionStreet.webp" },
+            { id: "InscriptionPrint", name: "Вышивка", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/InscriptionPrint.webp" },
+            { id: "InscriptionFantastic", name: "Волшебная надпись", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/InscriptionFantastic.webp" },
+            { id: "InscriptionFair", name: "Буквы из огня", preview: "https://storage.yandexcloud.net/publiccontent/ArtGenPreview/InscriptionFair.webp" }
+
+        ];
+
+        // Инициализация интерфейса
+        let history = JSON.parse(localStorage.getItem('fabulaHistory')) || [];
+        let selectedStyle = localStorage.getItem('selectedStyle') || 'Base';
+
+        // Сохранение состояния
+        function saveState() {
+            localStorage.setItem('accessToken', document.getElementById('accessToken').value);
+            localStorage.setItem('prompt', document.getElementById('prompt').value);
+            localStorage.setItem('quantity', document.getElementById('quantity').value);
+            localStorage.setItem('ratio', document.getElementById('ratio').value);
+            localStorage.setItem('selectedStyle', selectedStyle);
+        }
+
+        // Восстановление состояния
+        function loadState() {
+            document.getElementById('accessToken').value = localStorage.getItem('accessToken') || '';
+            document.getElementById('prompt').value = localStorage.getItem('prompt') || '';
+            document.getElementById('quantity').value = localStorage.getItem('quantity') || '4';
+            document.getElementById('ratio').value = localStorage.getItem('ratio') || '1:1';
+            selectedStyle = localStorage.getItem('selectedStyle') || 'Base';
+        }
+
+        // Генерация стилей
+        function renderStyles() {
+            const container = document.getElementById('stylesContainer');
+            container.innerHTML = styles.map(style => `
+                <div class="style-card ${selectedStyle === style.id ? 'active' : ''}" 
+                     onclick="selectStyle('${style.id}')"
+                     data-id="${style.id}">
+                    <img src="${style.preview}" class="style-preview">
+                    <div class="style-name">${style.name}</div>
+                </div>
+            `).join('');
+        }
+
+        // Выбор стиля
+        function selectStyle(styleId) {
+            selectedStyle = styleId;
+            document.querySelectorAll('.style-card').forEach(card => {
+                card.classList.toggle('active', card.dataset.id === styleId);
+            });
+            saveState();
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.addEventListener('click', function (event) {
+                // Ищем ближайший элемент с классом 'generated-image' или 'history-thumbnail'
+                const img = event.target.closest('.generated-image, .history-thumbnail');
+                if (img) {
+                    const modal = document.getElementById('modal');
+                    const modalImg = document.getElementById('modalImage');
+                    modal.classList.add('open');
+                    modalImg.src = img.src;
+                    // Закрытие модального окна при клике на него
+                    modal.onclick = function () {
+                        modal.classList.remove('open');
+                    }
+                }
+            });
+        });
+
+        // Основная функция генерации
+        async function generateImages() {
+            const prompt = document.getElementById('prompt').value;
+            const quantity = parseInt(document.getElementById('quantity').value);
+            const ratio = document.getElementById('ratio').value;
+            const token = document.getElementById('accessToken').value;
+
+            if (!prompt || !token) {
+                alert('Заполните обязательные поля!');
+                return;
+            }
+
+            const loader = document.getElementById('loader');
+            const startTime = Date.now(); // Уникальный ID для группы запросов
+
+            try {
+                loader.style.display = 'block';
+                const totalRequests = Math.ceil(quantity / 4);
+                let completedRequests = 0;
+
+                // Создаем объект истории перед началом генерации
+                const historyItem = {
+                    id: startTime,
+                    prompt,
+                    style: selectedStyle,
+                    quantity,
+                    ratio,
+                    date: new Date().toLocaleString(),
+                    images: []
+                };
+
+                // Добавляем в историю сразу
+                history.unshift(historyItem);
+                updateHistory();
+
+                // Обрабатываем каждый запрос отдельно
+                for (let i = 0; i < totalRequests; i++) {
+                    const currentQuantity = i === totalRequests - 1 ? quantity % 4 || 4 : 4;
+
+                    const response = await fetch("https://api.fabula-ai.com/canvas/generate/art-generator", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            style_id: selectedStyle,
+                            prompt: prompt,
+                            quantity: currentQuantity,
+                            ratio: ratio
+                        })
+                    });
+
+                    const data = await response.json();
+                    const images = data.filter(item => item.type === "base64");
+
+                    // Добавляем изображения сразу при получении
+                    const fragment = document.createDocumentFragment();
+                    images.forEach(img => {
+                        const image = document.createElement('img');
+                        image.src = `data:image/jpeg;base64,${img.value}`;
+                        image.className = 'generated-image loading';
+                        image.style.cursor = 'zoom-in';
+                        image.onload = () => image.classList.remove('loading');
+                        fragment.appendChild(image);
+                    });
+                    document.getElementById('results').prepend(fragment);
+
+                    // Обновляем историю
+                    historyItem.images.push(...images.map(img => img.value));
+                    completedRequests++;
+                    loader.textContent = `Генерация... (${Math.round((completedRequests / totalRequests) * 100)}%)`;
+
+                    // Сохраняем после каждого запроса
+                    try {
+                        localStorage.setItem('fabulaHistory', JSON.stringify(history));
+                    } catch (e) {
+                        if (e.name === 'QuotaExceededError') {
+                            history.pop();
+                            localStorage.setItem('fabulaHistory', JSON.stringify(history));
+                        }
+                    }
+
+                    updateHistory();
+                }
+
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Ошибка генерации: ' + error.message);
+                // Удаляем failed item
+                history = history.filter(item => item.id !== startTime);
+            } finally {
+                loader.style.display = 'none';
+                // Финализируем историю
+                updateHistory();
+                localStorage.setItem('fabulaHistory', JSON.stringify(history));
+            }
+        }
+        // Обновление значения ползунка
+        document.getElementById('quantity').addEventListener('input', function () {
+            document.getElementById('quantityValue').textContent = this.value;
+        });
+
+
+        // Обновление истории
+        function updateHistory() {
+            // Ограничиваем историю 20 последними записями
+            // if (history.length > 20) history.length = 20;
+
+            document.getElementById('history').innerHTML = history.map(item => `
+            <div class="history-item" onclick="loadFromHistory(${item.id})">
+                <div><strong>${item.prompt}</strong></div>
+                <div>Стиль: ${item.style} | Кол-во: ${item.quantity} | Соотношение: ${item.ratio}</div>
+                <div>${item.date}</div>
+                <div class="history-thumbnails">
+                    ${item.images.slice(0, 3).map(img => `
+                        <img src="data:image/jpeg;base64,${img}" 
+                            class="history-thumbnail"
+                            data-fullimage="data:image/jpeg;base64,${img}">
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+        }
+
+
+        // Загрузка из истории
+        function loadFromHistory(id) {
+            const item = history.find(i => i.id === id);
+            if (item) {
+                document.getElementById('results').innerHTML = item.images.map(img => `
+            <img src="data:image/jpeg;base64,${img}" 
+                 class="generated-image"
+                 style="cursor: zoom-in">
+        `).join('');
+            }
+        }
+        // Инициализация
+        window.onload = () => {
+            loadState();
+            renderStyles();
+            try {
+                history = JSON.parse(localStorage.getItem('fabulaHistory')) || [];
+            } catch (e) {
+                history = [];
+            }
+
+            updateHistory();
+
+            // Автосохранение при изменении
+            document.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('change', saveState);
+            });
+        };
+    </script>
+    <div class="modal" id="modal">
+        <img class="modal-content" id="modalImage">
+    </div>
+</body>
+
+</html>
