@@ -53,7 +53,7 @@
         select,
         button {
             width: 100%;
-            padding: 12px;
+            padding: 10px 1px 10px 1px;
             margin: 6px 0 18px;
             border: 2px solid #ddd;
             border-radius: 8px;
@@ -339,7 +339,69 @@
             <div class="images-grid" id="results"></div>
         </div>
     </div>
+    <script>
+        const dbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open('fabulaDB', 1);
 
+            request.onupgradeneeded = function (event) {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('history')) {
+                    db.createObjectStore('history', {
+                        keyPath: 'id',
+                        autoIncrement: true
+                    });
+                }
+            };
+            request.onsuccess = function (event) {
+                resolve(event.target.result);
+            };
+
+            request.onerror = function (event) {
+                reject(event.target.error);
+            };
+        });
+
+        async function saveHistory(item) {
+            const db = await dbPromise;
+            const tx = db.transaction('history', 'readwrite');
+            const store = tx.objectStore('history');
+
+            const request = store.put(item);
+            request.onsuccess = () => console.log("saveHistory success:", item);
+            request.onerror = (e) => console.error("saveHistory error:", e.target.error);
+
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => {
+                    console.log("Transaction complete for saveHistory");
+                    resolve();
+                };
+                tx.onerror = (e) => {
+                    console.error("Transaction error in saveHistory:", e.target.error);
+                    reject(e.target.error);
+                };
+            });
+        }
+
+        async function loadHistory() {
+            const db = await dbPromise;
+            const tx = db.transaction('history', 'readonly');
+            const store = tx.objectStore('history');
+
+            return new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    console.log("loadHistory success, items:", request.result);
+                    resolve(request.result);
+                };
+                request.onerror = (e) => {
+                    console.error("loadHistory error:", e.target.error);
+                    reject(e.target.error);
+                };
+            });
+        }
+
+
+    </script>
     <script>
         // Конфигурация стилей
         const styles = [
@@ -471,7 +533,7 @@
                 }
             });
         });
-
+        let allImages;
         // Основная функция генерации
         async function generateImages() {
             const prompt = document.getElementById('prompt').value;
@@ -491,7 +553,7 @@
             try {
                 loader.style.display = 'block';
                 let requests = [];
-
+                allImages = allImages || [];
                 const historyItem = {
                     id: startTime,
                     prompt,
@@ -500,8 +562,14 @@
                     ratio,
                     date: new Date().toLocaleString(),
                     images: []
+                    //images: allImages.map(img => img.value)
                 };
-
+                try {
+                    await saveHistory(historyItem);
+                } catch (error) {
+                    console.error('Ошибка сохранения:', error);
+                    alert('Не удалось сохранить историю!');
+                }
                 // Добавляем в историю сразу
                 history.unshift(historyItem);
                 updateHistory();
@@ -527,6 +595,8 @@
                                         ratio: ratio
                                     })
                                 });
+
+
                                 const data = await response.json();
                                 const images = data.filter(item => item.type === "base64");
 
@@ -538,6 +608,7 @@
                                     image.style.cursor = 'zoom-in';
                                     image.onload = () => image.classList.remove('loading');
                                     fragment.appendChild(image);
+                                    allImages.push(img.value);
                                 });
 
                                 document.getElementById('results').prepend(fragment);
@@ -551,6 +622,16 @@
                     });
 
                     await Promise.all(requests);
+                    try {
+                        historyItem.images.reverse();
+                        await saveHistory(historyItem);
+                    } catch (error) {
+                        console.error('Ошибка сохранения:', error);
+                        alert('Не удалось сохранить историю!');
+                    }
+
+                    history.unshift(historyItem);
+                    updateHistory();
                 } else {
                     // Параллельный режим (пакетами по 4)
                     const totalRequests = Math.ceil(quantity / 4);
@@ -581,19 +662,29 @@
                                 image.style.cursor = 'zoom-in';
                                 image.onload = () => image.classList.remove('loading');
                                 fragment.appendChild(image);
+                                allImages.push(img.value);
                             });
 
                             document.getElementById('results').prepend(fragment);
                             historyItem.images.push(...images.map(img => img.value));
-                            updateHistory();
+                            updateHistory();                         
                         });
                     });
 
                     await Promise.all(requests);
+                    try {
+                        await saveHistory(historyItem);
+                    } catch (error) {
+                        console.error('Ошибка сохранения:', error);
+                        alert('Не удалось сохранить историю!');
+                    }
+
+                    history.unshift(historyItem);
+                    updateHistory();
                 }
 
 
-                localStorage.setItem('fabulaHistory', JSON.stringify(history));
+                //localStorage.setItem('fabulaHistory', JSON.stringify(history));
 
             } catch (error) {
                 console.error('Ошибка:', error);
@@ -601,7 +692,7 @@
                 history = history.filter(item => item.id !== startTime);
             } finally {
                 loader.style.display = 'none';
-                localStorage.setItem('fabulaHistory', JSON.stringify(history));
+                // localStorage.setItem('fabulaHistory', JSON.stringify(history));
                 updateHistory();
             }
 
@@ -616,49 +707,68 @@
 
 
         // Обновление истории
-        function updateHistory() {
-            // Ограничиваем историю 20 последними записями
-            // if (history.length > 20) history.length = 20;
+        async function updateHistory() {
+            try {
+                // Ограничиваем историю 20 последними записями
+                // if (history.length > 20) history.length = 20;
+                const history = await loadHistory();
 
-            document.getElementById('history').innerHTML = history.map(item => `
-            <div class="history-item" onclick="loadFromHistory(${item.id})">
+
+                const historyHTML = history.reverse().map(item => `
+           <div class="history-item" onclick="loadFromHistory(${item.id})">
                 <div><strong>${item.prompt}</strong></div>
                 <div>Стиль: ${item.style} | Кол-во: ${item.quantity} | Соотношение: ${item.ratio}</div>
                 <div>${item.date}</div>
                 <div class="history-thumbnails">
-                    ${item.images.slice(0, 3).map(img => `
-                        <img src="data:image/jpeg;base64,${img}" 
-                            class="history-thumbnail"
-                            data-fullimage="data:image/jpeg;base64,${img}">
-                    `).join('')}
+                ${(item.images || []).slice(0, 4).map(img => `
+                    <img src="data:image/jpeg;base64,${img}" 
+                        class="history-thumbnail"
+                        data-fullimage="data:image/jpeg;base64,${img}">
+                `).join('')}
                 </div>
             </div>
         `).join('');
+                document.getElementById('history').innerHTML = historyHTML;
+            } catch (error) {
+                console.error('Ошибка загрузки истории:', error);
+            }
         }
 
 
         // Загрузка из истории
-        function loadFromHistory(id) {
-            const item = history.find(i => i.id === id);
-            if (item) {
-                document.getElementById('results').innerHTML = item.images.map(img => `
-            <img src="data:image/jpeg;base64,${img}" 
-                 class="generated-image"
-                 style="cursor: zoom-in">
+        async function loadFromHistory(id) {
+            try {
+                const db = await dbPromise;
+                const tx = db.transaction('history', 'readonly');
+                const store = tx.objectStore('history');
+
+                const item = await new Promise((resolve, reject) => {
+                    const request = store.get(id);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+
+                if (item && item.images) {
+                    document.getElementById('results').innerHTML = (item.images || []).map(img => `
+            <img src="data:image/jpeg;base64,${img}" class="generated-image" style="cursor: zoom-in">
         `).join('');
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
             }
         }
         // Инициализация
-        window.onload = () => {
+        window.onload = async () => {
             loadState();
             renderStyles();
-            try {
-                history = JSON.parse(localStorage.getItem('fabulaHistory')) || [];
-            } catch (e) {
-                history = [];
-            }
+            loadHistory();
+            // try {
+            //     history = JSON.parse(localStorage.getItem('fabulaHistory')) || [];
+            // } catch (e) {
+            //     history = [];
+            // }
 
-            updateHistory();
+            await updateHistory();
 
             // Автосохранение при изменении
             document.querySelectorAll('input, select').forEach(el => {
