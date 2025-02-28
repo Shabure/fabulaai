@@ -331,14 +331,36 @@
             <button onclick="generateImages()">Сгенерировать</button>
 
             <h3 style="margin-top: 30px;">История генераций</h3>
+            <button onclick="clearHistory()">Очистить историю</button>
             <div id="history" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
 
         <div class="generation-area">
             <h2>Результаты генерации</h2>
+            <button onclick="clearResults()">Очистить результаты</button>
             <div class="images-grid" id="results"></div>
         </div>
     </div>
+    <script>
+        async function clearHistory() {
+            const db = await dbPromise;
+            const tx = db.transaction('history', 'readwrite');
+            const store = tx.objectStore('history');
+            store.clear();
+            tx.oncomplete = () => {
+                console.log("История генераций очищена");
+                document.getElementById('history').innerHTML = ''; // Очистка интерфейса
+            };
+        }
+
+        // Очистка результатов генерации (очищает блок с изображениями)
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            console.log("Результаты генерации очищены");
+        }
+
+
+    </script>
     <script>
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open('fabulaDB', 1);
@@ -667,7 +689,7 @@
 
                             document.getElementById('results').prepend(fragment);
                             historyItem.images.push(...images.map(img => img.value));
-                            updateHistory();                         
+                            updateHistory();
                         });
                     });
 
