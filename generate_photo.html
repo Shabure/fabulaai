@@ -156,6 +156,11 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
+            will-change: transform;
+            /* Помогает браузеру оптимизировать рендеринг */
+            /* contain: strict; */
+            /* Изолирует элемент для оптимизации */
+
         }
 
         .generated-image:hover {
@@ -389,7 +394,16 @@
             const store = tx.objectStore('history');
 
             const request = store.put(item);
-            request.onsuccess = () => console.log("saveHistory success:", item);
+
+            const count = await store.count();
+            if (count > 100) {
+                const oldItems = await store.getAllKeys();
+                const itemsToDelete = oldItems.slice(0, oldItems.length - 100);
+                itemsToDelete.forEach(key => store.delete(key));
+            }
+
+
+            // request.onsuccess = () => console.log("saveHistory success:", item);
             request.onerror = (e) => console.error("saveHistory error:", e.target.error);
 
             return new Promise((resolve, reject) => {
@@ -412,7 +426,7 @@
             return new Promise((resolve, reject) => {
                 const request = store.getAll();
                 request.onsuccess = () => {
-                    console.log("loadHistory success, items:", request.result);
+                    // console.log("loadHistory success, items:", request.result);
                     resolve(request.result);
                 };
                 request.onerror = (e) => {
@@ -719,6 +733,8 @@
             }
 
         }
+
+
         // Обновление значения ползунка
         document.getElementById('quantity').addEventListener('input', function () {
             const value = this.value;
